@@ -59,7 +59,7 @@ function Translator() {
     axios
       .post(
         //"https://0lcfzb95a3.execute-api.us-east-2.amazonaws.com/Translation",
-        "https://61c60b63wf.execute-api.us-east-2.amazonaws.com/deploy/translation",
+        "https://g6plwjxcxe.execute-api.us-east-2.amazonaws.com/deploy/translation",
         data
       )
       .then((response) => {
@@ -78,7 +78,7 @@ function Translator() {
   };
   axios
       .post(
-        "https://61c60b63wf.execute-api.us-east-2.amazonaws.com/deploy/email",
+        "https://g6plwjxcxe.execute-api.us-east-2.amazonaws.com/deploy/email",
         //"https://ftj7kp7pe5hpjoy7vhpwxxlaum0spaqh.lambda-url.us-east-2.on.aws/",
         data
       )
@@ -94,7 +94,7 @@ function Translator() {
       email: email,      
   };
 console.log("heklnfdjnfjdnjjnjdnjdnjn"+email)
-  fetch(`https://61c60b63wf.execute-api.us-east-2.amazonaws.com/deploy/history?email=${email}`)
+  fetch(`https://g6plwjxcxe.execute-api.us-east-2.amazonaws.com/deploy/history?email=${email}`)
   .then(response => response.json())
   .then(data => {
     // localStorage.setItem("myData", JSON.stringify(data));

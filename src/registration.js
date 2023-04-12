@@ -90,7 +90,7 @@ import {
         
            axios
         .post(
-         "https://61c60b63wf.execute-api.us-east-2.amazonaws.com/deploy/allemail",
+         "https://g6plwjxcxe.execute-api.us-east-2.amazonaws.com/deploy/allemail",
          {
           email: email
       }
