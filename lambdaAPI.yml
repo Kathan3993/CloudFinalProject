@@ -1,0 +1,272 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Resources:
+  DataDynamoDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: 999TranslatorHistory
+      TableClass: STANDARD
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: 'N'
+      BillingMode: PROVISIONED
+      DeletionProtectionEnabled: false
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
+
+ # Lambda Functions
+  TranslationLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: translationcloud
+        S3Key: lambda_function-5.py.zip
+      FunctionName: 999Translation
+      Handler: lambda_function-5.lambda_handler
+      Runtime: python3.9
+      Role: arn:aws:iam::298840374615:role/Cloud
+      Timeout: 900
+    DependsOn:
+      - DataDynamoDB
+
+  TranslationLambdaPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TranslationLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+
+  SESAllEmailLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: translationcloud
+        S3Key: lambda_function-8.py.zip
+      FunctionName: 999sesallemail
+      Handler: lambda_function-8.lambda_handler
+      Runtime: python3.9
+      Role: arn:aws:iam::298840374615:role/Cloud
+      Timeout: 900
+    DependsOn:
+      - DataDynamoDB
+
+  SESAllEmailLambdaPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SESAllEmailLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+
+  HistoryLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: translationcloud
+        S3Key: lambda_function-4.py.zip
+      FunctionName: 999History
+      Handler: lambda_function-4.lambda_handler
+      Runtime: python3.9
+      Role: arn:aws:iam::298840374615:role/Cloud
+      Timeout: 900
+    DependsOn:
+      - DataDynamoDB
+
+  HistoryLambdaPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref HistoryLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+
+  EmailLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: translationcloud
+        S3Key: lambda_function-6.py.zip
+      FunctionName: 999Email
+      Handler: lambda_function-6.lambda_handler
+      Runtime: python3.9
+      Role: arn:aws:iam::298840374615:role/Cloud
+      Timeout: 900
+    
+  EmailLambdaPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref EmailLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+
+  APIGateway:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: API
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowMethods:
+          - "*"
+        AllowOrigins:
+          - "*"
+        AllowHeaders:
+          - "*"
+  
+  APIGatewayStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref APIGateway
+      StageName: deploy
+      Description: Deploy Stage
+      AutoDeploy: true
+
+  APIGatewayIntegrationWithTranslationLambda:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref APIGateway
+      Description: Lambda Integration
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      PayloadFormatVersion: "2.0"
+      IntegrationUri: !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TranslationLambda.Arn}/invocations'
+  
+  APIGatewayRouteTranslation:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref APIGateway
+      RouteKey: "POST /translation"
+      AuthorizationType: NONE
+      Target: !Join
+        - /
+        - - integrations
+          - !Ref APIGatewayIntegrationWithTranslationLambda
+
+  APIGatewayIntegrationWithHistoryLambda:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref APIGateway
+      Description: Lambda Integration
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      PayloadFormatVersion: "2.0"
+      IntegrationUri: !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HistoryLambda.Arn}/invocations'
+  
+  APIGatewayRouteHistory:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref APIGateway
+      RouteKey: "ANY /history"
+      AuthorizationType: NONE
+      Target: !Join
+        - /
+        - - integrations
+          - !Ref APIGatewayIntegrationWithHistoryLambda
+
+  APIGatewayIntegrationWithEmailLambda:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref APIGateway
+      Description: Lambda Integration
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      PayloadFormatVersion: "2.0"
+      IntegrationUri: !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${EmailLambda.Arn}/invocations'
+  
+  APIGatewayRouteEmail:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref APIGateway
+      RouteKey: "POST /email"
+      AuthorizationType: NONE
+      Target: !Join
+        - /
+        - - integrations
+          - !Ref APIGatewayIntegrationWithEmailLambda
+  VerifyLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: translationcloud
+        S3Key: lambda_function-7.py.zip
+      FunctionName: 999Verify
+      Handler: lambda_function-7.lambda_handler
+      Runtime: python3.9
+      Role: arn:aws:iam::298840374615:role/Cloud
+      Timeout: 900
+
+  VerifyLambdaPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref VerifyLambda
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+
+  CognitoUserPool:
+    Type: "AWS::Cognito::UserPool"
+    Properties:
+      UserPoolName: tempPool
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 6
+          RequireUppercase: false
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          TemporaryPasswordValidityDays: 7
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Priority: 1
+            Name: verified_email
+          - Priority: 2
+            Name: verified_phone_number
+      UsernameConfiguration:
+        CaseSensitive: false
+      LambdaConfig:
+        PreSignUp: !Sub ${VerifyLambda.Arn}
+      
+
+  CognitoUserPoolClient:
+    Type: "AWS::Cognito::UserPoolClient"
+    Properties:
+      ClientName: tempClient
+      GenerateSecret: false
+      RefreshTokenValidity: 7
+      ExplicitAuthFlows:
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      PreventUserExistenceErrors: ENABLED
+      UserPoolId:
+        Ref: CognitoUserPool
+
+
+
+  APIGatewayIntegrationWithSESAllEmailLambda:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref APIGateway
+      Description: Lambda Integration
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      PayloadFormatVersion: "2.0"
+      IntegrationUri: !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SESAllEmailLambda.Arn}/invocations'
+  
+  APIGatewayRouteSESAllEmail:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref APIGateway
+      RouteKey: "POST /allemail"
+      AuthorizationType: NONE
+      Target: !Join
+        - /
+        - - integrations
+          - !Ref APIGatewayIntegrationWithSESAllEmailLambda

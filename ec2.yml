@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Resources:
+  KeyPairCloud:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: key-pair
+  MyInstance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: "t3.large"
+      ImageId: "ami-0a695f0d95cefc163"
+      KeyName: !Ref KeyPairCloud
+      SecurityGroupIds:
+        - !Ref MySecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo apt update
+          sudo apt-get install nginx -y 
+          sudo apt-get install curl
+          curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash - 
+          sudo apt-get install -y nodejs
+          cd /var/www/html/
+          sudo git clone https://github.com/Kathan3993/CloudFinalProject.git
+          sudo chown -R nginx:nginx *
+          echo "change permission of nginx"
+          sudo chmod 755 CloudFinalProject
+          echo "giving permission to the project"
+          cd CloudFinalProject
+          sudo npm install
+          sudo npm run build
+          sudo cp -r build /var/www/html
+          cd ../
+          sudo mv build/* .
+          
+          
+
+  MySecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Enable all traffic"
+      SecurityGroupIngress:
+        - IpProtocol: "-1"
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: "-1"
+          FromPort: 0
+          ToPort: 65535
+          CidrIpv6: "::/0"
